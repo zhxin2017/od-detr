@@ -10,11 +10,13 @@ class VocDataset(Dataset):
                  ann_root_dir, 
                  filelist_files,
                  categories,
-                 input_size):
+                 input_size,
+                 random_pad=False):
         self.category_to_idx = {'background': 0}
         self.category_to_idx.update({name: idx + 1 for idx, name in enumerate(categories)})   
 
         self.h, self.w = input_size
+        self.random_pad = random_pad
         
         self.filelist = []
         for filelist_file in filelist_files:
@@ -36,7 +38,7 @@ class VocDataset(Dataset):
         boxes, cids = anno.parse_xml(anno_path, self.category_to_idx)
 
         img = image.load_image(img_path)
-        img, boxes = image.pad_img_and_boxes(img, boxes, self.h, self.w)
+        img, boxes = image.pad_img_and_boxes(img, boxes, self.h, self.w, random_pad=self.random_pad)
 
         return img, boxes, cids
 

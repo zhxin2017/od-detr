@@ -7,7 +7,7 @@ import random
 def load_image(image_path):
     return cv2.imread(image_path) / 255
 
-def pad_img_and_boxes(img, boxes, dst_h, dst_w):
+def pad_img_and_boxes(img, boxes, dst_h, dst_w, random_pad=False):
     '''
     Args:
         img: [H, W, C], np.ndarray
@@ -23,8 +23,12 @@ def pad_img_and_boxes(img, boxes, dst_h, dst_w):
         h_ = int(h * scale)
         w_ = dst_w
     canvas = np.zeros((dst_h, dst_w, 3), dtype=np.float32)
-    x_offset = random.randint(0, dst_w - w_)
-    y_offset = random.randint(0, dst_h - h_)
+    if random_pad:
+        x_offset = random.randint(0, dst_w - w_)
+        y_offset = random.randint(0, dst_h - h_)
+    else:
+        x_offset = (dst_w - w_) // 2
+        y_offset = (dst_h - h_) // 2
     img = cv2.resize(img, (w_, h_))
     if len(boxes) > 0:
         boxes = boxes * scale + np.array([[x_offset, y_offset, x_offset, y_offset]])
