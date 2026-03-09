@@ -1,0 +1,5 @@
+.DS_Store
+checkpoints/
+# pycache
+**/__pycache__/
+*.jpg
