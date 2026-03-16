@@ -22,7 +22,7 @@ def parse_xml(xml_path, category_to_idx):
         xmax = float(bbox.find('xmax').text)
         ymax = float(bbox.find('ymax').text)
         boxes.append([xmin, ymin, xmax, ymax])
-    boxes = np.array(boxes)
-    cids = np.array(cids)
+    boxes = np.array(boxes, dtype=np.float32)
+    cids = np.array(cids, dtype=np.int64)
     return boxes, cids
 

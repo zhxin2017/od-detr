@@ -12,6 +12,8 @@ num_query = 128
 
 img_root_dir = '/Users/zx/Documents/cv/dataset/VOC2012/JPEGImages'
 xml_root_dir = '/Users/zx/Documents/cv/dataset/VOC2012/Annotations'
-filelist_files = ['/Users/zx/Documents/cv/dataset/VOC2012/ImageSets/Main/train2017.txt']
+train_filelist_files = ['/Users/zx/Documents/cv/dataset/VOC2012/ImageSets/Main/train2017.txt']
+val_filelist_files = ['/Users/zx/Documents/cv/dataset/VOC2012/ImageSets/Main/val2017.txt']
+train_cached_file = '/Users/zx/Documents/cv/dataset/VOC2012/train_cached.pkl'
 
 epoch = 100

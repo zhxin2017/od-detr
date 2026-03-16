@@ -1,7 +1,12 @@
-from dataset import anno, image
+import os
+import numpy as np
+import pickle
+from config import num_query
+from dataset import anno, image, data_cache
 import xml.etree.ElementTree as ET
 from torch.utils.data import Dataset
 import torch
+import time
 
 
 class VocDataset(Dataset):
@@ -11,43 +16,71 @@ class VocDataset(Dataset):
                  filelist_files,
                  categories,
                  input_size,
-                 random_pad=False):
+                 random_pad=False,
+                 cached_file=None,
+                 cached_anno_file=None
+                 ):
         self.category_to_idx = {'background': 0}
         self.category_to_idx.update({name: idx + 1 for idx, name in enumerate(categories)})   
 
         self.h, self.w = input_size
         self.random_pad = random_pad
-        
+        self.cached_file = cached_file
+
         self.filelist = []
         for filelist_file in filelist_files:
             with open(filelist_file, 'r') as f:
                 lines = f.readlines()
-                for line in lines:
-                    self.filelist.append(line.strip())
+                files = [line.strip() for line in lines]
+                self.filelist.extend(files)
         
         self.img_root_dir = img_root_dir
-        self.anno_root_dir = ann_root_dir
+        self.ann_root_dir = ann_root_dir
+
+        if cached_file is not None:
+            assert os.path.exists(cached_file), f"Cached file {cached_file} does not exist."
+            print(f"Loading cached data from {cached_file}...")
+            load_start = time.time()
+            with open(cached_file, 'rb') as f:
+                cache_data = pickle.load(f)
+            load_end = time.time()
+            print(f"Loaded cached data in {load_end - load_start:.3f} seconds.")
+            self.img_cache = cache_data['images']
+            self.anno_cache = cache_data['anno']
+        else:
+            self.img_cache = None
+
 
     def __len__(self):
         return len(self.filelist)
     
     def __getitem__(self, index):
         file_name = self.filelist[index]
-        img_path = f'{self.img_root_dir}/{file_name}.jpg'
-        anno_path = f'{self.anno_root_dir}/{file_name}.xml'
-        boxes, cids = anno.parse_xml(anno_path, self.category_to_idx)
-
-        img = image.load_image(img_path)
+        fetch_start = time.time()
+        if self.img_cache is not None:
+            img = self.img_cache[file_name]
+            boxes, cids = self.anno_cache[file_name]
+            boxes = boxes.astype(np.float32)
+            # print(f'dtype of cached image: {img.dtype}, dtype of cached boxes: {boxes.dtype}, dtype of cached cids: {cids.dtype}')
+        else:
+            img_path = os.path.join(self.img_root_dir, f'{file_name}.jpg')
+            anno_load_start = time.time()
+            anno_path = os.path.join(self.ann_root_dir, f'{file_name}.xml')
+            boxes, cids = anno.parse_xml(anno_path, self.category_to_idx)
+            img = image.load_image(img_path)
+            img, boxes = image.resize_img(img, boxes, self.h, self.w)
+        n = len(boxes)
+        boxes_padding = np.zeros((num_query - n, 4), dtype=np.float32)
+        cids_padding = np.zeros((num_query - n,), dtype=np.int64)
+        if n == 0:
+            boxes = boxes_padding
+            cids = cids_padding
+        else:
+            boxes = np.concatenate([boxes, boxes_padding], axis=0)
+            cids = np.concatenate([cids, cids_padding], axis=0)
         img, boxes = image.pad_img_and_boxes(img, boxes, self.h, self.w, random_pad=self.random_pad)
 
         return img, boxes, cids
-
-
-def collate_fn(batch):
-    images = [torch.tensor(item[0]) for item in batch]
-    targets = [{'boxes': torch.tensor(item[1]), 'cids': torch.tensor(item[2])} for item in batch]
-    images = torch.stack(images, dim=0)
-    return images, targets
 
 
 if __name__ == '__main__':

@@ -21,7 +21,7 @@ def assign_query(boxes_gt, boxes_pred, cids_gt, cls_pred, gt_pos_mask):
 
             iouloss = 1 - torchvision.ops.box_iou(boxes_pred[i], boxes_gt[i, :n_pos[i]])
             l1loss = torch.cdist(boxes_pred[i], boxes_gt[i, :n_pos[i]], p=1)
-            box_loss = iouloss + l1loss
+            box_loss = iouloss * 2 + l1loss * 5
             probs = torch.log_softmax(cls_pred[i], dim=-1)
             cls_loss = - probs[:, cids_gt[i, :n_pos[i]]]
 
@@ -29,7 +29,10 @@ def assign_query(boxes_gt, boxes_pred, cids_gt, cls_pred, gt_pos_mask):
             # print('in match', box_loss.shape, cls_loss.shape)
 
             total_loss = box_loss + cls_loss
-        # total_loss[total_loss == torch.nan] = 1e8
+
+            # Check for NaN or Inf in total_loss and replace them
+            total_loss = torch.nan_to_num(total_loss, nan=1e8, posinf=1e8, neginf=-1e8)
+
         row_, col_ = scipy.optimize.linear_sum_assignment(total_loss.detach().cpu().numpy())
         col_ = col_.tolist()
         row_ = row_.tolist()
